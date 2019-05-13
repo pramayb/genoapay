@@ -17,8 +17,8 @@ import java.util.stream.Collectors;
  * @version 1.0
  */
 public class Genoapay {
-	
-	//Field to store previous day's trade opening time ie. Yesterday at 10.00 am
+
+	// Field to store previous day's trade opening time ie. Yesterday at 10.00 am
 	private final static LocalDateTime tradeOpeningTime = LocalDate.now().minusDays(1l).atTime(10, 00);
 
 	/**
@@ -29,20 +29,21 @@ public class Genoapay {
 	 * @return max profit calculated
 	 */
 	public static int getMaxProfit(Map<LocalDateTime, Integer> stockPrices) {
-		//check for valid stock prices input
+		// check for valid stock prices input
 		if (stockPrices == null || stockPrices.size() <= 1)
 			return 0;
 
 		stockPrices = filterList(stockPrices);
 
-		//check valid stock price list after applying filter
-		//If size is less than or equal than 1 it makes no criteria for calculation
+		// check valid stock price list after applying filter
+		// If size is less than or equal than 1 it makes no criteria for calculation
 		if (stockPrices.size() <= 1) {
 			return 0;
 		}
 
 		List<Integer> values = new ArrayList<Integer>(processPriceList(stockPrices).values());
-		return calculateMaxProfit(values);
+
+		return getMaxProfit(values.toArray(new Integer[0]));
 	}
 
 	/**
@@ -53,7 +54,7 @@ public class Genoapay {
 	 */
 	private static Map<LocalDateTime, Integer> filterList(Map<LocalDateTime, Integer> stockPrices) {
 		return stockPrices.entrySet().stream()
-				//check for past and future stock purchases, if found any skip it
+				// check for past and future stock purchases, if found any skip it
 				.filter(sp -> (sp.getKey().until(LocalDateTime.now(), ChronoUnit.MINUTES) > 1
 						&& (tradeOpeningTime.until(sp.getKey(), ChronoUnit.MINUTES) > 1)))
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -68,38 +69,48 @@ public class Genoapay {
 	 */
 	private static Map<Long, Integer> processPriceList(Map<LocalDateTime, Integer> stockPrices) {
 		Map<Long, Integer> processedStockPrices = new HashMap<Long, Integer>();
-		
-		//store stock prices with the time difference of between self and trade opening time
+
+		// store stock prices with the time difference of between self and trade opening
+		// time
 		for (Iterator<LocalDateTime> iterator = stockPrices.keySet().iterator(); iterator.hasNext();) {
 			LocalDateTime localTime = iterator.next();
 			processedStockPrices.put(tradeOpeningTime.until(localTime, ChronoUnit.MINUTES), stockPrices.get(localTime));
 		}
 
-		//sort stock prices on the basis of their purchase time line with the help of Minute difference from trade opening time
+		// sort stock prices on the basis of their purchase time line with the help of
+		// Minute difference from trade opening time
 		Map<Long, Integer> sortedStockPrices = processedStockPrices.entrySet().stream()
 				.sorted(Map.Entry.comparingByKey(Comparator.naturalOrder())).collect(Collectors.toMap(Map.Entry::getKey,
 						Map.Entry::getValue, (oldValue, newValue) -> oldValue, LinkedHashMap::new));
-		
+
 		return sortedStockPrices;
 	}
 
 	/**
-	 * Max Stock profit is calculated with the difference between two stock purchases in time series
+	 * Max Stock profit is calculated with the difference between two stock
+	 * purchased assuming they are in time series
 	 * 
 	 * @param stockPrices
 	 * @return max profit calculated
 	 */
-	private static int calculateMaxProfit(List<Integer> stockPrices) {
+	public static int getMaxProfit(Integer[] stockPrices) {
 		int maxProfit = 0;
-		for (int i = 0; i < stockPrices.size(); i++) {
-			for (int j = i + 1; j < stockPrices.size(); j++) {
-				int stockDiff = stockPrices.get(j) - stockPrices.get(i);
-				if (stockDiff > maxProfit) {
-					maxProfit = stockDiff;
+		for (int j = 1, min = stockPrices[0]; j < stockPrices.length; j++) {
+			if (stockPrices[j] < min) {
+				if (j == stockPrices.length - 1) {
+					break;
+				} else {
+					min = stockPrices[j];
+					maxProfit = 0;
+					continue;
 				}
 			}
-		}
 
+			int maxDiff = stockPrices[j] - min;
+			if (maxDiff > maxProfit)
+				maxProfit = maxDiff;
+		}
+		
 		return maxProfit;
 	}
 
